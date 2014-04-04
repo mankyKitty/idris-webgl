@@ -1,2 +1,5 @@
 *.ibc
 *.o
+
+# I don't want to upload the built file
+idris-webgl.js

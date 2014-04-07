@@ -28,21 +28,24 @@ triangleVertices = [-0.5, -0.5, 0.5, -0.5, 0, 0.5]
 
 -- Pyramid
 pyramidVertices : List Float
-pyramidVertices = [0.0, 1.0, 0.0,
-                   -1.0, 0.0, 0.0,
-                   0.0, 0.0, 1.0,
-                   
-                   0.0, 1.0, 0.0,
-                   0.0, 0.0, 1.0,
-                   1.0, 0.0, 0.0,
-                   
-                   0.0, 1.0, 0.0,
-                   1.0, 0.0, 0.0,
-                   0.0, 0.0, -1.0,
-                   
-                   0.0, 1.0, 0.0,
-                   0.0, 0.0, -1.0,
-                   -1.0, 0.0, 0.0]
+pyramidVertices = [
+        0.0, 1.0, 0.0,
+        -1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0,
+
+        0.0, 1.0, 0.0,
+        0.0, 0.0, 1.0,
+        1.0, 0.0, 0.0,
+
+        0.0, 1.0, 0.0,
+        1.0, 0.0, 0.0,
+        0.0, 0.0, -1.0,
+
+        0.0, 1.0, 0.0,
+        0.0, 0.0, -1.0,
+        -1.0, 0.0, 0.0]
+
+
 
 pyramidColours : List Float
 pyramidColours = [0, 0, 1, 1,
@@ -117,12 +120,15 @@ main = do
   -- JS Math.Pi Value
   mPI <- mathPI
   
-  -- Create our matrices
-  mvMatrix <- createMat4 >>= translateMat
-  pjMatrix <- createMat4 >>= perspectiveM4 mPI (w/h) 1 100
   -- Create rotation vector
   rotationAxis <- createVec3FromVect rotateVec
   rotationAxis' <- createVec3 >>= normaliseV3 rotationAxis
+  
+  -- Create our matrices
+  mvMatrix <- createMat4 >>= translateMat
+              >>= (\m => rotateM4 m (mPI*2*(1396850589796/10000)) rotationAxis' m)
+  pjMatrix <- createMat4 >>= perspectiveM4 (mPI/4) (w/h) 1 100
+
   
   -- Pass our shader code to be built,compiled, and linked to the GL context
   progCxt <- bindAttrZero (program,glCxt) "vertPos"

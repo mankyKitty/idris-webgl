@@ -1,11 +1,12 @@
 module GLCore
 
 import Types
+import JSMatrix.JSMatrix
 
 -- Create the WebGL context from a canvas element
 getGLCxt : Element -> IO GLCxt
 getGLCxt (MkElem e) = do
-  x <- mkForeign (FFun "%0.getContext('webgl')" [FPtr] FPtr) e
+  x <- mkForeign (FFun "%0.getContext('experimental-webgl')" [FPtr] FPtr) e
   return (MkCxt x)
 
 -- Create a program for building and linking shaders
@@ -91,7 +92,25 @@ setViewport (MkElem e) (MkCxt c) = do
   mkForeign (FFun "%0.viewport(0,0, %1.width, %1.height)" [FPtr,FPtr] FUnit) c e
   return (MkCxt c)
 
-prepareVerticesArray : List Float -> IO F32Array
-prepareVerticesArray xs = createJSArray
-                          >>= fromFloatList xs
-                          >>= createF32Array
+-- Get a uniform location
+getUniformLocation : String -> (GLProgram,GLCxt) -> IO Int
+getUniformLocation uni ((MkGLProg p),(MkCxt c)) =
+  mkForeign (FFun "%0.getUniformLocation(%1,%2)" [FPtr,FPtr,FString] FInt) c p uni
+
+-- Assign 4x4 Matrix value to uniform location
+uniformMatrix4v : JSGLMat4 -> (GLProgram,GLCxt) -> Int -> IO (GLProgram,GLCxt)
+uniformMatrix4v (MkMat4 mat4) ((MkGLProg p),(MkCxt c)) loc = do
+  mkForeign (FFun "%0.uniformMatrix4fv(%1,false,%2)" [FPtr,FInt,FPtr] FUnit) c loc mat4
+  return ((MkGLProg p),(MkCxt c))
+
+-- Fetch the Math.PI value from JS Land
+mathPI : IO Float
+mathPI = mkForeign (FFun "Math.PI" [] FFloat)
+
+-- Retrieve the dimensions of the canvas element
+canvasDimensions : Element -> IO (List Float)
+canvasDimensions (MkElem e) = do
+  width <- mkForeign (FFun "%0.width" [FPtr] FFloat) e
+  height <- mkForeign (FFun "%0.height" [FPtr] FFloat) e
+  return [width,height]
+

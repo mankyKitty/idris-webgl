@@ -4,6 +4,8 @@ import GLCore
 import JSArrays
 import Shaders
 
+import JSMatrix.JSMatrix
+
 -- Save time, just get the canvas directly by id
 getElemById : String -> IO Element
 getElemById s = do
@@ -60,6 +62,11 @@ pyramidColours = [0, 0, 1, 1,
 baseGLInit : GLCxt -> IO GLCxt
 baseGLInit c = clearColor [1.0, 1.0, 1.0, 1.0] c >>= enableGLSetting >>= depthFun >>= glClear
 
+prepareVerticesArray : List Float -> IO F32Array
+prepareVerticesArray xs = createJSArray
+                          >>= fromFloatList xs
+                          >>= createF32Array
+                          
 -- Create an array, populate it with vertices, and use it to create a proper Float32Array
 prepareTriangleArray : IO F32Array
 prepareTriangleArray = prepareVerticesArray triangleVertices
@@ -75,9 +82,27 @@ assignVertexPositionAttribs attr n glProg = do
   loc <- getAttribLocation attr glProg
   enableVertexAttribArray glProg loc >>= setVertexAttribPointer n loc
 
+mvTranslateVect : Vect 3 Float
+mvTranslateVect = [0.0,0.0,-3.0]
+
+rotateVec : Vect 3 Float
+rotateVec = [0.0,1.0,0.0]            
+
+translateMat : JSGLMat4 -> IO JSGLMat4
+translateMat jsMat4 =
+  createVec3FromVect mvTranslateVect >>= \v3 => translateM4 v3 jsMat4 jsMat4
+
+adjPerspectiveMat : Float -> Float -> Float -> Float -> JSGLMat4 -> IO JSGLMat4
+adjPerspectiveMat fovy aspect near far (MkMat4 mat4) = do
+  mat4' <- mkForeign (FFun "mat4.perspective(%0,%1,%2,%3,%4)"
+                      [FPtr, FFloat, FFloat, FFloat, FFloat]
+                      FPtr
+                     ) mat4 fovy aspect near far
+  return (MkMat4 mat4')
+
 main : IO ()
 main = do
-  -- f32Arr <- prepareTriangleArray -- prepare our vertices
+  [w,h] <- getElemById "canvas" >>= canvasDimensions
   verticesF32 <- prepareVerticesArray pyramidVertices
   coloursF32 <- prepareVerticesArray pyramidColours
   glCxt <- locateInitCanvas -- start our engines
@@ -96,12 +121,29 @@ main = do
   -- Pull the shaders off the DOM
   vshader <- getShader "vshader"
   fshader <- getShader "fshader"
+
+  -- JS Math.Pi Value
+  mPI <- mathPI
+  
+  -- Create our matrices
+  mvMatrix <- createMat4 >>= translateMat
+  pjMatrix <- createMat4 >>= adjPerspectiveMat mPI (w/h) 1 100
+  -- Create rotation vector
+  rotationAxis <- createVec3FromVect rotateVec
+  rotationAxis' <- createVec3 >>= normaliseV3 rotationAxis
   
   -- Pass our shader code to be built,compiled, and linked to the GL context
-  bindAttrZero (program,glCxt) "vertPos"
+  progCxt <- bindAttrZero (program,glCxt) "vertPos"
     >>= compileAndLinkShaders [Vertex vshader, Fragment fshader]
     >>= useProg -- set the gl context to use this created program
     >>= assignVertexPositionAttribs "vertPos" 3
     >>= assignVertexPositionAttribs "vertColor" 4
-    >>= \glProg => drawTriangles glProg 0 12 -- draw our vertices to the screen
+
+  pjLoc <- getUniformLocation "pjMatrix" progCxt
+  mvLoc <- getUniformLocation "mvMatrix" progCxt
+
+  progCxt' <- uniformMatrix4v pjMatrix progCxt pjLoc
+  progCxt'' <- uniformMatrix4v mvMatrix progCxt' mvLoc
+  
+  drawTriangles progCxt'' 0 12 -- draw our vertices to the screen
   putStrLn "We're finished?"

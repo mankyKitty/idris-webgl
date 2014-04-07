@@ -9,4 +9,4 @@ CLEAN= rm *.ibc
 	cd 2DExample/; $(CC) $(JS_CODEGEN) -o $(OUTPUT) $(MAIN); $(CLEAN); cd ../
 
 3d:
-	cd 3bDExample/; $(CC) $(JS_CODEGEN) -o $(OUTPUT) $(MAIN); $(CLEAN); cd ../
+	cd 3DExample/; $(CC) $(JS_CODEGEN) -o $(OUTPUT) $(MAIN); $(CLEAN); cd ../

@@ -92,14 +92,6 @@ translateMat : JSGLMat4 -> IO JSGLMat4
 translateMat jsMat4 =
   createVec3FromVect mvTranslateVect >>= \v3 => translateM4 v3 jsMat4 jsMat4
 
-adjPerspectiveMat : Float -> Float -> Float -> Float -> JSGLMat4 -> IO JSGLMat4
-adjPerspectiveMat fovy aspect near far (MkMat4 mat4) = do
-  mat4' <- mkForeign (FFun "mat4.perspective(%0,%1,%2,%3,%4)"
-                      [FPtr, FFloat, FFloat, FFloat, FFloat]
-                      FPtr
-                     ) mat4 fovy aspect near far
-  return (MkMat4 mat4')
-
 main : IO ()
 main = do
   [w,h] <- getElemById "canvas" >>= canvasDimensions
@@ -127,7 +119,7 @@ main = do
   
   -- Create our matrices
   mvMatrix <- createMat4 >>= translateMat
-  pjMatrix <- createMat4 >>= adjPerspectiveMat mPI (w/h) 1 100
+  pjMatrix <- createMat4 >>= perspectiveM4 mPI (w/h) 1 100
   -- Create rotation vector
   rotationAxis <- createVec3FromVect rotateVec
   rotationAxis' <- createVec3 >>= normaliseV3 rotationAxis
@@ -142,8 +134,7 @@ main = do
   pjLoc <- getUniformLocation "pjMatrix" progCxt
   mvLoc <- getUniformLocation "mvMatrix" progCxt
 
-  progCxt' <- uniformMatrix4v pjMatrix progCxt pjLoc
-  progCxt'' <- uniformMatrix4v mvMatrix progCxt' mvLoc
-  
-  drawTriangles progCxt'' 0 12 -- draw our vertices to the screen
+  _ <- uniformMatrix4v pjMatrix progCxt pjLoc
+       >>= (\pc => uniformMatrix4v mvMatrix pc mvLoc)
+       >>= (\pc => drawTriangles pc 0 12) -- draw our vertices to the screen
   putStrLn "We're finished?"

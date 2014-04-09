@@ -6,8 +6,11 @@ import JSMatrix.JSMatrix
 -- Create the WebGL context from a canvas element
 getGLCxt : Element -> IO GLCxt
 getGLCxt (MkElem e) = do
-  x <- mkForeign (FFun "%0.getContext('experimental-webgl')" [FPtr] FPtr) e
+  x <- mkForeign (FFun "%0.getContext('webgl')" [FPtr] FPtr) e
   return (MkCxt x)
+
+getGLProp : String -> GLCxt -> IO Int
+getGLProp prop (MkCxt c) = mkForeign (FFun "%0[%1]" [FPtr,FString] FInt) c prop
 
 -- Create a program for building and linking shaders
 createProg : GLCxt -> IO (GLProgram,GLCxt)
@@ -23,9 +26,9 @@ useProg ((MkGLProg y),(MkCxt x)) = do
 
 -- Enable a specific GL setting. I don't know how to access enum properties
 -- using the JavaScript FFI yet so this is a bit filthy but easy to change.
-enableGLSetting : GLCxt -> IO GLCxt
-enableGLSetting (MkCxt c) = do
-  _ <- mkForeign (FFun "%0.enable(%0.DEPTH_TEST)" [FPtr] FUnit) c
+enableGLSetting : Int -> GLCxt -> IO GLCxt
+enableGLSetting setting (MkCxt c) = do
+  _ <- mkForeign (FFun "%0.enable(%1)" [FPtr,FInt] FUnit) c setting
   return (MkCxt c)
 
 -- Again with the enum properties. But this clears the current context.
@@ -61,19 +64,12 @@ bindArrayBuffer (MkCxt c) (MkBuf b) = do
   mkForeign (FFun "%0.bindBuffer(%0.ARRAY_BUFFER, %1)" [FPtr,FPtr] FUnit) c b
   return (MkCxt c)
 
--- Retrieve the array buffer type value
-bufferType : GLCxt -> IO Int
-bufferType (MkCxt c) = mkForeign (FFun "%0.ARRAY_BUFFER" [FPtr] FInt) c
--- Retrieve the static draw style value
-drawStyle : GLCxt -> IO Int
-drawStyle (MkCxt c) = mkForeign (FFun "%0.STATIC_DRAW" [FPtr] FInt) c
-
 -- Load the buffer data
 -- gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW)
 bufferVertexData : F32Array -> GLCxt -> IO GLCxt
 bufferVertexData (MkF32Array xs) (MkCxt c) = do
-  bType <- bufferType (MkCxt c)
-  style <- drawStyle (MkCxt c)
+  bType <- getGLProp "ARRAY_BUFFER" (MkCxt c)
+  style <- getGLProp "STATIC_DRAW" (MkCxt c)
   mkForeign (FFun "%0.bufferData(%1, %2, %3)" [FPtr,FInt,FPtr,FInt] FUnit) c bType xs style
   return (MkCxt c)
 
@@ -95,9 +91,9 @@ drawTriangles ((MkGLProg p),(MkCxt c)) start nVertices = do
   return ((MkGLProg p),(MkCxt c))
 
 -- Set the viewport size to the canvas element size
-setViewport : Element -> GLCxt -> IO GLCxt
-setViewport (MkElem e) (MkCxt c) = do
-  mkForeign (FFun "%0.viewport(0,0, %1.width, %1.height)" [FPtr,FPtr] FUnit) c e
+setViewport : Float -> Float -> GLCxt -> IO GLCxt
+setViewport w h (MkCxt c) = do
+  mkForeign (FFun "%0.viewport(0,0,%1,%2)" [FPtr,FFloat,FFloat] FUnit) c w h
   return (MkCxt c)
 
 -- Get a uniform location
@@ -114,11 +110,3 @@ uniformMatrix4v (MkMat4 mat4) ((MkGLProg p),(MkCxt c)) loc = do
 -- Fetch the Math.PI value from JS Land
 mathPI : IO Float
 mathPI = mkForeign (FFun "Math.PI" [] FFloat)
-
--- Retrieve the dimensions of the canvas element
-canvasDimensions : Element -> IO (List Float)
-canvasDimensions (MkElem e) = do
-  width <- mkForeign (FFun "%0.width" [FPtr] FFloat) e
-  height <- mkForeign (FFun "%0.height" [FPtr] FFloat) e
-  return [width,height]
-

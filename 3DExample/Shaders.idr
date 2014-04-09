@@ -1,11 +1,12 @@
 module Shaders
 
 import Types
+import GLCore
 
 -- Return the enum value for the shader type for the given GL context
 shaderType : Shader -> GLCxt -> IO Int
-shaderType (Vertex _) (MkCxt c) = mkForeign (FFun "%0.VERTEX_SHADER" [FPtr] FInt) c
-shaderType (Fragment _) (MkCxt c) = mkForeign (FFun "%0.FRAGMENT_SHADER" [FPtr] FInt) c
+shaderType (Vertex _) cxt = getGLProp "VERTEX_SHADER" cxt
+shaderType (Fragment _) cxt = getGLProp "FRAGMENT_SHADER" cxt
 
 -- This could be better.. so much better
 -- Takes a shader, a GL context and the enum value for the shader type

@@ -12,31 +12,40 @@ getElemById s = do
   x <- mkForeign (FFun "document.getElementById(%0)" [FString] FPtr) s
   return (MkElem x)
 
-textContent : Element -> IO String
-textContent (MkElem e) =
-  mkForeign (FFun "%0.textContent" [FPtr] FString) e
-  
+getElemFloatProp : String -> Element -> IO Float
+getElemFloatProp p (MkElem e) = mkForeign (FFun "%0[%1]" [FPtr,FString] FFloat) e p
+
+getElemStringProp : String -> Element -> IO String
+getElemStringProp p (MkElem e) = mkForeign (FFun "%0[%1]" [FPtr,FString] FString) e p
+
+-- Retrieve the dimensions of the canvas element
+canvasDimensions : Element -> IO (List Float)
+canvasDimensions e = do
+  w <- getElemFloatProp "width" e
+  h <- getElemFloatProp "height" e
+  return [w,h]
+
 -- Shader Functions
 getShader : String -> IO String
-getShader e = getElemById e >>= textContent
+getShader e = getElemById e >>= getElemStringProp "textContent"
 
 -- Pyramid
 pyramidVertices : List Float
-pyramidVertices = [ 0.0, 1.0, 0.0,
-                    -1.0, 0.0, 0.0,
-                    0.0, 0.0, 1.0,
-                    
-                    0.0, 1.0, 0.0,
-                    0.0, 0.0, 1.0,
-                    1.0, 0.0, 0.0,
-                    
-                    0.0, 1.0, 0.0,
-                    1.0, 0.0, 0.0,
-                    0.0, 0.0, -1.0,
-
-                    0.0, 1.0, 0.0,
-                    0.0, 0.0, -1.0,
-                    -1.0, 0.0, 0.0]
+pyramidVertices = [0.0, 1.0, 0.0,
+                   -1.0, 0.0, 0.0,
+                   0.0, 0.0, 1.0,
+                   
+                   0.0, 1.0, 0.0,
+                   0.0, 0.0, 1.0,
+                   1.0, 0.0, 0.0,
+                   
+                   0.0, 1.0, 0.0,
+                   1.0, 0.0, 0.0,
+                   0.0, 0.0, -1.0,
+  
+                   0.0, 1.0, 0.0,
+                   0.0, 0.0, -1.0,
+                   -1.0, 0.0, 0.0]
 
 pyramidColours : List Float
 pyramidColours = [0, 0, 1, 1,
@@ -55,14 +64,20 @@ pyramidColours = [0, 0, 1, 1,
                   1, 0, 0, 1,
                   1, 0, 0, 1]
 
+mvTranslateVect : Vect 3 Float
+mvTranslateVect = [0.0,0.0,-4.0]
+
+rotateVec : Vect 3 Float
+rotateVec = [0.0,1.0,0.0]
+
 -- Some basic settings for starting our GL env
 baseGLInit : GLCxt -> IO GLCxt
-baseGLInit c = clearColor [1.0, 1.0, 1.0, 1.0] c >>= enableGLSetting >>= glClear
+baseGLInit c = do
+  depthTest <- getGLProp "DEPTH_TEST" c
+  clearColor [1.0, 1.0, 1.0, 1.0] c >>= enableGLSetting depthTest >>= glClear
 
 prepareVerticesArray : List Float -> IO F32Array
-prepareVerticesArray xs = createJSArray
-                          >>= fromFloatList xs
-                          >>= createF32Array
+prepareVerticesArray xs = createJSArray >>= fromFloatList xs >>= createF32Array
 
 -- Wrapper for finding and init'ing our GL env and context
 locateInitCanvas : IO GLCxt
@@ -75,18 +90,12 @@ assignVertexPositionAttribs attr n glProg = do
   loc <- getAttribLocation attr glProg
   enableVertexAttribArray glProg loc >>= setVertexAttribPointer n loc
 
-mvTranslateVect : Vect 3 Float
-mvTranslateVect = [0.0,0.0,-4.0]
-
-rotateVec : Vect 3 Float
-rotateVec = [0.0,1.0,0.0]            
-
 translateMat : JSGLMat4 -> IO JSGLMat4
 translateMat jsMat4 =
   createVec3FromVect mvTranslateVect >>= \v3 => translateM4 v3 jsMat4 jsMat4
 
-printJunk : JSGLMat4 -> IO ()
-printJunk (MkMat4 a) = mkForeign (FFun "console.log(%0)" [FPtr] FUnit) a
+printJunk : F32Array -> IO ()
+printJunk (MkF32Array a) = mkForeign (FFun "console.log(%0)" [FPtr] FUnit) a
 
 main : IO ()
 main = do
@@ -96,7 +105,10 @@ main = do
 
   (vBuffer,glCxt) <- locateInitCanvas >>= flip createBindBuffer verticesF32
   (cBuffer,glCxt') <- createBindBuffer glCxt coloursF32
-  
+
+  -- Set the viewport size
+  setViewport w h glCxt'
+
   prgCxt <- createProg glCxt'
 
   -- Pull the shaders off the DOM
@@ -112,20 +124,21 @@ main = do
 
   -- Create our matrices
   mvMatrix <- createMat4 >>= translateMat
-  -- mvMatrix' <- rotateM4 mvMatrix (mPI*2*(1396850589796/10000)) rotationAxis' mvMatrix
+  mvMatrix' <- rotateM4 mvMatrix (mPI*2*(1396850589796/10000)) rotationAxis' mvMatrix
 
   pjMatrix <- createMat4 >>= perspectiveM4 (mPI/4) (w/h) 1 100
 
   -- Pass our shader code to be built,compiled, and linked to the GL context
-  prgCxt' <- compileAndLinkShaders [vshader, fshader] prgCxt
-    >>= useProg -- set the gl context to use this created program
-    >>= assignVertexPositionAttribs "vertPos" 3
-    >>= assignVertexPositionAttribs "vertColor" 4
+  prgCxt' <- compileAndLinkShaders [vshader, fshader] prgCxt >>= useProg
+  
+  prgCxt'' <- assignVertexPositionAttribs "vertPos" 3 prgCxt'
+  nxtPrgCxt <- assignVertexPositionAttribs "vertColor" 4 prgCxt''
 
-  pjLoc <- getUniformLocation "pjMatrix" prgCxt'
-  mvLoc <- getUniformLocation "mvMatrix" prgCxt'
+  mvLoc <- getUniformLocation "mvMatrix" nxtPrgCxt
+  pjLoc <- getUniformLocation "pjMatrix" nxtPrgCxt
 
-  _ <- uniformMatrix4v pjMatrix prgCxt' pjLoc
-       >>= (\pc => uniformMatrix4v mvMatrix pc mvLoc)
+  _ <- uniformMatrix4v pjMatrix nxtPrgCxt pjLoc
+       >>= (\pc => uniformMatrix4v mvMatrix' pc mvLoc)
        >>= (\pc => drawTriangles pc 0 12) -- draw our vertices to the screen
-  putStrLn "We're finished?"
+
+  putStrLn "It might have worked... who knows!"

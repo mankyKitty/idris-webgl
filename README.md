@@ -22,3 +22,7 @@ There is an additional `JSMatrix` lib that is included with the 3D example that 
 Don't judge me.. Food.
 
 there are many refactorings to come for this that will make somethings easier. I am still trying to make the 3D one actually behave too so don't get greedy.
+
+Live Versions:
+* [2D Version](https://s3.amazonaws.com/manky-demos/idris-webgl/2d/index.html)
+* [3D Version (broken)](https://s3.amazonaws.com/manky-demos/idris-webgl/3d/index.html)

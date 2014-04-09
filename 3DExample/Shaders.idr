@@ -49,22 +49,10 @@ compileAndLinkShaders (y :: xs) (prog,cxt) = do
   nPrgCxt <- buildShader y cxt >>= attachShader prog cxt
   compileAndLinkShaders xs nPrgCxt
 
--- Bind to attribute zero for safety
-bindAttrZero : (GLProgram,GLCxt) -> String -> IO (GLProgram,GLCxt)
-bindAttrZero ((MkGLProg p),(MkCxt c)) name = do
-  mkForeign (FFun "%0.bindAttribLocation(%1, 0, %2)" [FPtr,FPtr,FString] FUnit) c p name
-  return ((MkGLProg p), (MkCxt c))
-
 -- Setting attribute locations for shader variables.
 getAttribLocation : String -> (GLProgram,GLCxt) -> IO Int
 getAttribLocation attr ((MkGLProg p), (MkCxt c)) =
   mkForeign (FFun "%0.getAttribLocation(%1,%2)" [FPtr,FPtr,FString] FInt) c p attr 
-
--- Set the vertexPosAttrib for the current program
-setVertexPosAttrib : (GLProgram,GLCxt) -> Int -> IO (GLProgram,GLCxt)
-setVertexPosAttrib ((MkGLProg p),(MkCxt c)) loc = do
-  mkForeign (FFun "%0.vertexPosAttrib = %1" [FPtr,FInt] FUnit) p loc
-  return ((MkGLProg p),(MkCxt c))
 
 -- Enable the Vertex Attribute Array for the current vertexPosAttrib
 enableVertexAttribArray : (GLProgram,GLCxt) -> Int -> IO (GLProgram,GLCxt)

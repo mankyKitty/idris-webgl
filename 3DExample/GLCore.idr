@@ -10,10 +10,10 @@ getGLCxt (MkElem e) = do
   return (MkCxt x)
 
 -- Create a program for building and linking shaders
-createProg : GLCxt -> IO GLProgram
+createProg : GLCxt -> IO (GLProgram,GLCxt)
 createProg (MkCxt x) = do
   p <- mkForeign (FFun "%0.createProgram()" [FPtr] FPtr) x
-  return (MkGLProg p)
+  return ((MkGLProg p),(MkCxt x))
 
 -- Assign the program to the given webGL context
 useProg : (GLProgram, GLCxt) -> IO (GLProgram, GLCxt)
@@ -77,6 +77,14 @@ bufferVertexData (MkF32Array xs) (MkCxt c) = do
   mkForeign (FFun "%0.bufferData(%1, %2, %3)" [FPtr,FInt,FPtr,FInt] FUnit) c bType xs style
   return (MkCxt c)
 
+-- Helper/Convenience function to create/bind/fill an ARRAY_BUFFER with an F32Array
+createBindBuffer : GLCxt -> F32Array -> IO (GLBuffer,GLCxt)  
+createBindBuffer cxt arr = do
+  buf <- createBuffer cxt
+  cxt' <- bindArrayBuffer cxt buf
+  cxt'' <- bufferVertexData arr cxt'
+  return (buf,cxt'')
+  
 -- call gl.drawArrays to specifically draw triangles.
 -- First argument is the current program/glcontext
 -- start = where on the vertex array to start reading vertices

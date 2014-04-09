@@ -8,13 +8,10 @@
       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
       })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
       
-      ga('create', 'UA-42075664-2', 'idris-webgl-3d');
+      ga('create', 'UA-42075664-2', 'idris-webgl-demo');
       ga('send', 'pageview');
       
     </script>
-  </head>
-  <body>
-
 
     <script id="vshader" type="x-shader/x-vertex">
       attribute vec3 vertPos;
@@ -24,7 +21,6 @@
       varying lowp vec4 vColor;
       void main(void) {
         gl_Position = pjMatrix * mvMatrix * vec4(vertPos, 1.0);
-        //gl_Position = vec4(vertPos,1.0);
         vColor = vertColor;
       }
     </script>
@@ -35,9 +31,8 @@
         gl_FragColor = vColor;
       }
     </script>
-    <div id="marker">
-      <p>The canvas is just below here</p>
-    </div>
+  </head>
+  <body>
     <canvas id="canvas" width='500' height='500'></canvas>
     <script type="text/javascript" src="idris-webgl.js"></script>
   </body>

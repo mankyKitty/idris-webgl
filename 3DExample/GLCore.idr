@@ -85,8 +85,8 @@ createBindBuffer cxt arr = do
 -- First argument is the current program/glcontext
 -- start = where on the vertex array to start reading vertices
 -- nVertices = number of vertices to be read
-drawTriangles : (GLProgram,GLCxt) -> Int -> Int -> IO (GLProgram,GLCxt)
-drawTriangles ((MkGLProg p),(MkCxt c)) start nVertices = do
+drawTriangles : Int -> Int -> (GLProgram,GLCxt) -> IO (GLProgram,GLCxt)
+drawTriangles start nVertices ((MkGLProg p),(MkCxt c)) = do
   mkForeign (FFun "%0.drawArrays(%0.TRIANGLES, %1,%2)" [FPtr,FInt,FInt] FUnit) c start nVertices
   return ((MkGLProg p),(MkCxt c))
 
@@ -102,8 +102,8 @@ getUniformLocation uni ((MkGLProg p),(MkCxt c)) =
   mkForeign (FFun "%0.getUniformLocation(%1,%2)" [FPtr,FPtr,FString] FInt) c p uni
 
 -- Assign 4x4 Matrix value to uniform location
-uniformMatrix4v : JSGLMat4 -> (GLProgram,GLCxt) -> Int -> IO (GLProgram,GLCxt)
-uniformMatrix4v (MkMat4 mat4) ((MkGLProg p),(MkCxt c)) loc = do
+uniformMatrix4v : JSGLMat4 -> Int -> (GLProgram,GLCxt) -> IO (GLProgram,GLCxt)
+uniformMatrix4v (MkMat4 mat4) loc ((MkGLProg p),(MkCxt c)) = do
   mkForeign (FFun "%0.uniformMatrix4fv(%1,false,%2)" [FPtr,FInt,FPtr] FUnit) c loc mat4
   return ((MkGLProg p),(MkCxt c))
 

@@ -32,20 +32,20 @@ getShader e = getElemById e >>= getElemStringProp "textContent"
 -- Pyramid
 pyramidVertices : List Float
 pyramidVertices = [0.0, 1.0, 0.0,
-                   -1.0, 0.0, 0.0,
-                   0.0, 0.0, 1.0,
+                   -1.0, 0.0, 1.0,
+                   1.0, 0.0, 1.0,
                    
                    0.0, 1.0, 0.0,
-                   0.0, 0.0, 1.0,
-                   1.0, 0.0, 0.0,
+                   1.0, 0.0, 1.0,
+                   1.0, 0.0, -1.0,
                    
                    0.0, 1.0, 0.0,
-                   1.0, 0.0, 0.0,
-                   0.0, 0.0, -1.0,
+                   1.0, 0.0, -1.0,
+                   -1.0, 0.0, -1.0,
   
                    0.0, 1.0, 0.0,
-                   0.0, 0.0, -1.0,
-                   -1.0, 0.0, 0.0]
+                   -1.0, 0.0, -1.0,
+                   -1.0, 0.0, 1.0]
 
 pyramidColours : List Float
 pyramidColours = [0, 0, 1, 1,
@@ -94,8 +94,8 @@ translateMat : JSGLMat4 -> IO JSGLMat4
 translateMat jsMat4 =
   createVec3FromVect mvTranslateVect >>= \v3 => translateM4 v3 jsMat4 jsMat4
 
-printJunk : F32Array -> IO ()
-printJunk (MkF32Array a) = mkForeign (FFun "console.log(%0)" [FPtr] FUnit) a
+printJunk : JSGLMat4 -> IO ()
+printJunk (MkMat4 a) = mkForeign (FFun "console.log(%0)" [FPtr] FUnit) a
 
 main : IO ()
 main = do
@@ -124,8 +124,8 @@ main = do
 
   -- Create our matrices
   mvMatrix <- createMat4 >>= translateMat
-  mvMatrix' <- rotateM4 mvMatrix (mPI*2*(1396850589796/10000)) rotationAxis' mvMatrix
-
+  mvMatrix' <- rotateM4 mvMatrix (mPI*2*33) rotationAxis' mvMatrix
+  
   pjMatrix <- createMat4 >>= perspectiveM4 (mPI/4) (w/h) 1 100
 
   -- Pass our shader code to be built,compiled, and linked to the GL context
@@ -136,9 +136,9 @@ main = do
 
   mvLoc <- getUniformLocation "mvMatrix" nxtPrgCxt
   pjLoc <- getUniformLocation "pjMatrix" nxtPrgCxt
-
-  _ <- uniformMatrix4v pjMatrix nxtPrgCxt pjLoc
-       >>= (\pc => uniformMatrix4v mvMatrix' pc mvLoc)
-       >>= (\pc => drawTriangles pc 0 12) -- draw our vertices to the screen
+  
+  nxtPrgCxt' <- uniformMatrix4v mvMatrix' mvLoc nxtPrgCxt >>= uniformMatrix4v pjMatrix pjLoc
+  
+  drawTriangles 0 12 nxtPrgCxt'
 
   putStrLn "It might have worked... who knows!"
